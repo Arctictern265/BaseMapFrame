@@ -33,6 +33,8 @@ from qgis.gui import *
 import resource
 from ui_selectSystem import Ui_DialogSelectSystem
 
+from math import ceil,floor
+
 class dlgSelectSystem(QDialog, Ui_DialogSelectSystem):
     
     def __init__(self, parent=None):
@@ -59,9 +61,22 @@ class dlgSelectSystem(QDialog, Ui_DialogSelectSystem):
         self.comboBox_system.addItem("XIX", QVariant(2461))
         self.comboBox_system.setCurrentIndex(8)
         self.radioButton_2500.setChecked(True)
+        
+        
+    def onCheck2500(self):
+        self.comboBox_system.setEnabled(True)
+    
+    
+    def onCheck5000(self):
+        self.comboBox_system.setEnabled(True)
+    
+    
+    def onCheck2nd(self):
+        self.comboBox_system.setEnabled(False)
 
 
 def GetFrameName2500(x, y):
+    y += 1500
     aFrame = ['A', 'A', '0', '0', '4']
     ny = (300000 - y) / 30000
     nx = (x + 160000) / 40000
@@ -90,6 +105,7 @@ def GetFrameName2500(x, y):
 
 
 def GetFrameName5000(x, y):
+    y += 3000
     aFrame = ['A', 'A', '0', '0']
     ny = (300000 - y) / 30000
     nx = (x + 160000) / 40000
@@ -106,7 +122,66 @@ def GetFrameName5000(x, y):
         strFrame += c
     return strFrame
 
+def GetFrameName1stMesh(x, y):
+    nName = (int(floor(y * 1.5)) * 100) + int(floor(x-100))
+    return str(nName)
 
+def GetFrameName2ndMesh(x, y):
+    yMod = y*60 % 40
+    xMod = (x % 1) * 60
+    ny = int(yMod/5.0)
+    nx = int(xMod/7.5)
+    
+    return GetFrameName1stMesh(x, y) + str(ny) + str(nx)
+
+def generateFrames(layer, mapRect, width, height, mapCrs, elemCrs, xmin, xmax, ymin, ymax, nameFunc):
+
+    trans = QgsCoordinateTransform(mapCrs, elemCrs)
+    rect = trans.transform(mapRect)
+        
+    xmin = rect.xMinimum()
+    ymin = rect.yMinimum()
+    xmax = rect.xMaximum()
+    ymax = rect.yMaximum()
+
+    if rect.xMinimum() < xmin:
+        rect.setXMinimum(xmin)
+    if rect.xMaximum() > xmax:
+        rect.setXMaximum(xmax)
+    if rect.yMinimum() < ymin:
+        rect.setYMinimum(ymin)
+    if rect.yMaximum() > ymax:
+        rect.setYMaximum(ymax)
+ 
+    layer.startEditing()
+    provider = layer.dataProvider()
+    provider.addAttributes(
+        [QgsField("MapName", QVariant.String)])
+    y = (int(rect.yMinimum()) / height) * height
+    while y < rect.yMaximum():
+        x = (int(rect.xMinimum()) / width) * width
+        while x < rect.xMaximum():
+            f = QgsFeature()
+            f.setGeometry(QgsGeometry.fromPolygon([[
+                trans.transform(QgsPoint(x, y), QgsCoordinateTransform.ReverseTransform),
+                trans.transform(QgsPoint(x, y + height), QgsCoordinateTransform.ReverseTransform),
+                trans.transform(QgsPoint(x + width, y + height), QgsCoordinateTransform.ReverseTransform),
+                trans.transform(QgsPoint(x + width, y), QgsCoordinateTransform.ReverseTransform),
+                trans.transform(QgsPoint(x, y), QgsCoordinateTransform.ReverseTransform)
+            ]]))
+            
+            strFrame = nameFunc(x, y)
+            
+            f.setAttributeMap({0: strFrame})
+            layer.addFeature(f)
+            
+            x += width
+        y += height
+                        
+    layer.commitChanges()
+    layer.updateExtents()
+
+    
 class BaseMapFrame(object):
 
     def __init__(self, iface):
@@ -152,104 +227,17 @@ class BaseMapFrame(object):
             return False
             
         return True
-
-    def genMesh2500(self, layer, mapRect, elemCrs, mapCrs):
-
-        trans = QgsCoordinateTransform(mapCrs, elemCrs)
-        rect = trans.transform(mapRect)
-        
-        xmin = rect.xMinimum()
-        ymin = rect.yMinimum()
-        xmax = rect.xMaximum()
-        ymax = rect.yMaximum()
-
-        if rect.xMinimum() < -160000:
-            rect.setXMinimum(-160000)
-        if rect.xMaximum() > 160000:
-            rect.setXMaximum(160000)
-        if rect.yMinimum() < -300000:
-            rect.setYMinimum(-300000)
-        if rect.yMaximum() > 300000:
-            rect.setYMaximum(300000)
-
-        layer.startEditing()
-        provider = layer.dataProvider()
-        provider.addAttributes(
-            [QgsField("MapName", QVariant.String)])
-        y = (int(rect.yMinimum()) / 1500) * 1500
-        while y < rect.yMaximum():
-            x = (int(rect.xMinimum()) / 2000) * 2000
-            while x < rect.xMaximum():
-                f = QgsFeature()
-                f.setGeometry(QgsGeometry.fromPolygon([[
-                    trans.transform(QgsPoint(x, y), QgsCoordinateTransform.ReverseTransform),
-                    trans.transform(QgsPoint(x, y + 1500), QgsCoordinateTransform.ReverseTransform),
-                    trans.transform(QgsPoint(x + 2000, y + 1500), QgsCoordinateTransform.ReverseTransform),
-                    trans.transform(QgsPoint(x + 2000, y), QgsCoordinateTransform.ReverseTransform),
-                    trans.transform(QgsPoint(x, y), QgsCoordinateTransform.ReverseTransform)
-                ]]))
-            
-                strFrame = GetFrameName2500(x, y + 1500)
-            
-                f.setAttributeMap({0: strFrame})
-                layer.addFeature(f)
-            
-                x += 2000
-            y += 1500
-                        
-        layer.commitChanges()
-        layer.updateExtents()
-
-
-    def genMesh5000(self, layer, mapRect, elemCrs, mapCrs):
-
-        trans = QgsCoordinateTransform(mapCrs, elemCrs)
-        rect = trans.transform(mapRect)
-
-        if rect.xMinimum() < -160000:
-            rect.setXMinimum(-160000)
-        if rect.xMaximum() > 160000:
-            rect.setXMaximum(160000)
-        if rect.yMinimum() < -300000:
-            rect.setYMinimum(-300000)
-        if rect.yMaximum() > 300000:
-            rect.setYMaximum(300000)
-
-        layer.startEditing()
-        provider = layer.dataProvider()
-        provider.addAttributes(
-            [QgsField("MapName", QVariant.String)])
-        y = (int(rect.yMinimum()) / 3000) * 3000
-        while y < rect.yMaximum():
-            x = (int(rect.xMinimum()) / 4000) * 4000
-            while x < rect.xMaximum():
-                f = QgsFeature()
-                f.setGeometry(QgsGeometry.fromPolygon([[
-                    trans.transform(QgsPoint(x, y), QgsCoordinateTransform.ReverseTransform),
-                    trans.transform(QgsPoint(x, y + 3000), QgsCoordinateTransform.ReverseTransform),
-                    trans.transform(QgsPoint(x + 4000, y + 3000), QgsCoordinateTransform.ReverseTransform),
-                    trans.transform(QgsPoint(x + 4000, y), QgsCoordinateTransform.ReverseTransform),
-                    trans.transform(QgsPoint(x, y), QgsCoordinateTransform.ReverseTransform)
-                ]]))
-            
-                strFrame = GetFrameName5000(x, y + 3000)
-            
-                f.setAttributeMap({0: strFrame})
-                layer.addFeature(f)
-            
-                x += 4000
-            y += 3000
-                        
-        layer.commitChanges()
-        layer.updateExtents()
-
+    
 
     def genMesh(self):
         
         dlg = dlgSelectSystem()
         if dlg.exec_() == QDialog.Accepted:
             
-            systemNo = dlg.comboBox_system.itemData(dlg.comboBox_system.currentIndex()).toInt()[0]
+            if not dlg.radioButton_2nd.isChecked():
+                systemNo = dlg.comboBox_system.itemData(dlg.comboBox_system.currentIndex()).toInt()[0]
+            else:
+                systemNo = 4612
 
             mapRenderer = self.canvas.mapRenderer()
             mapCrs = mapRenderer.destinationSrs()
@@ -264,11 +252,18 @@ class BaseMapFrame(object):
             if dlg.radioButton_2500.isChecked():
                 latlonLayer = QgsVectorLayer("Polygon", "Base Map Frame 2500", "memory")
                 QgsMapLayerRegistry.instance().addMapLayer(latlonLayer)
-                self.genMesh2500(latlonLayer, mapRect, elemCrs, mapCrs)
-            else:
+                generateFrames(latlonLayer, mapRect, 2000, 1500, mapCrs, elemCrs, -160000, 160000, -300000, 300000, GetFrameName2500);
+
+#                self.genMesh2500(latlonLayer, mapRect, elemCrs, mapCrs)
+            elif dlg.radioButton_5000.isChecked():
                 latlonLayer = QgsVectorLayer("Polygon", "Base Map Frame 5000", "memory")
                 QgsMapLayerRegistry.instance().addMapLayer(latlonLayer)
-                self.genMesh5000(latlonLayer, mapRect, elemCrs, mapCrs)
+                generateFrames(latlonLayer, mapRect, 4000, 3000, mapCrs, elemCrs, -160000, 160000, -300000, 300000, GetFrameName5000);
+            else:
+                latlonLayer = QgsVectorLayer("Polygon", "2nd Mesh", "memory")
+                QgsMapLayerRegistry.instance().addMapLayer(latlonLayer)
+#                self.getMesh2nd(latlonLayer, mapRect, elemCrs, mapCrs )
+                generateFrames(latlonLayer, mapRect, 1.0/8, 1.0/12, mapCrs, elemCrs, -180, 180, -90, 90, GetFrameName2ndMesh);
         
             QgsSymbologyV2Conversion.rendererV2toV1(latlonLayer)
         

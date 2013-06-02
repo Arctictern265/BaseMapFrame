@@ -34,6 +34,13 @@
         </property>
        </widget>
       </item>
+      <item>
+       <widget class="QRadioButton" name="radioButton_2nd">
+        <property name="text">
+         <string>二次メッシュ</string>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>
@@ -90,8 +97,8 @@
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>248</x>
-     <y>254</y>
+     <x>189</x>
+     <y>195</y>
     </hint>
     <hint type="destinationlabel">
      <x>157</x>
@@ -106,8 +113,8 @@
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>316</x>
-     <y>260</y>
+     <x>189</x>
+     <y>195</y>
     </hint>
     <hint type="destinationlabel">
      <x>286</x>
@@ -115,5 +122,58 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>radioButton_2nd</sender>
+   <signal>clicked()</signal>
+   <receiver>DialogSelectSystem</receiver>
+   <slot>onCheck2nd()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>74</x>
+     <y>85</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>199</x>
+     <y>66</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>radioButton_5000</sender>
+   <signal>clicked()</signal>
+   <receiver>DialogSelectSystem</receiver>
+   <slot>onCheck5000()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>79</x>
+     <y>62</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>199</x>
+     <y>47</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>radioButton_2500</sender>
+   <signal>clicked()</signal>
+   <receiver>DialogSelectSystem</receiver>
+   <slot>onCheck2500()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>74</x>
+     <y>34</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>199</x>
+     <y>26</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
+ <slots>
+  <slot>onCheck2500()</slot>
+  <slot>onCheck5000()</slot>
+  <slot>onCheck2nd()</slot>
+ </slots>
 </ui>
