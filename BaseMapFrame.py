@@ -31,6 +31,7 @@ from qgis.core import *
 from qgis.gui import *
 
 import resource
+import math
 from ui_selectSystem import Ui_DialogSelectSystem
 
 from math import ceil,floor
@@ -40,25 +41,25 @@ class dlgSelectSystem(QDialog, Ui_DialogSelectSystem):
     def __init__(self, parent=None):
         QDialog.__init__(self, parent)
         self.setupUi(self)
-        self.comboBox_system.addItem("I", QVariant(2443))
-        self.comboBox_system.addItem("II", QVariant(2444))
-        self.comboBox_system.addItem("III", QVariant(2445))
-        self.comboBox_system.addItem("IV", QVariant(2446))
-        self.comboBox_system.addItem("V", QVariant(2447))
-        self.comboBox_system.addItem("VI", QVariant(2448))
-        self.comboBox_system.addItem("VII", QVariant(2449))
-        self.comboBox_system.addItem("VIII", QVariant(2450))
-        self.comboBox_system.addItem("IX", QVariant(2451))
-        self.comboBox_system.addItem("X", QVariant(2452))
-        self.comboBox_system.addItem("XI", QVariant(2453))
-        self.comboBox_system.addItem("XII", QVariant(2454))
-        self.comboBox_system.addItem("XIII", QVariant(2455))
-        self.comboBox_system.addItem("XIV", QVariant(2456))
-        self.comboBox_system.addItem("XV", QVariant(2457))
-        self.comboBox_system.addItem("XVI", QVariant(2458))
-        self.comboBox_system.addItem("XVII", QVariant(2459))
-        self.comboBox_system.addItem("XVIII", QVariant(2460))
-        self.comboBox_system.addItem("XIX", QVariant(2461))
+        self.comboBox_system.addItem("I", (2443))
+        self.comboBox_system.addItem("II", (2444))
+        self.comboBox_system.addItem("III", (2445))
+        self.comboBox_system.addItem("IV", (2446))
+        self.comboBox_system.addItem("V", (2447))
+        self.comboBox_system.addItem("VI", (2448))
+        self.comboBox_system.addItem("VII", (2449))
+        self.comboBox_system.addItem("VIII", (2450))
+        self.comboBox_system.addItem("IX", (2451))
+        self.comboBox_system.addItem("X", (2452))
+        self.comboBox_system.addItem("XI", (2453))
+        self.comboBox_system.addItem("XII", (2454))
+        self.comboBox_system.addItem("XIII", (2455))
+        self.comboBox_system.addItem("XIV", (2456))
+        self.comboBox_system.addItem("XV", (2457))
+        self.comboBox_system.addItem("XVI", (2458))
+        self.comboBox_system.addItem("XVII", (2459))
+        self.comboBox_system.addItem("XVIII", (2460))
+        self.comboBox_system.addItem("XIX", (2461))
         self.comboBox_system.setCurrentIndex(8)
         self.radioButton_2500.setChecked(True)
         
@@ -138,11 +139,6 @@ def generateFrames(layer, mapRect, width, height, mapCrs, elemCrs, xmin, xmax, y
 
     trans = QgsCoordinateTransform(mapCrs, elemCrs)
     rect = trans.transform(mapRect)
-        
-    xmin = rect.xMinimum()
-    ymin = rect.yMinimum()
-    xmax = rect.xMaximum()
-    ymax = rect.yMaximum()
 
     if rect.xMinimum() < xmin:
         rect.setXMinimum(xmin)
@@ -152,16 +148,18 @@ def generateFrames(layer, mapRect, width, height, mapCrs, elemCrs, xmin, xmax, y
         rect.setYMinimum(ymin)
     if rect.yMaximum() > ymax:
         rect.setYMaximum(ymax)
- 
+
     layer.startEditing()
-    provider = layer.dataProvider()
-    provider.addAttributes(
-        [QgsField("MapName", QVariant.String)])
-    y = (int(rect.yMinimum()) / height) * height
+    fields = layer.pendingFields()
+    fields.append(QgsField("MapName", QVariant.String))
+    layer.addAttribute(fields[0])
+    y = (int(floor(rect.yMinimum() / height))) * height
     while y < rect.yMaximum():
-        x = (int(rect.xMinimum()) / width) * width
+        x = (int(floor(rect.xMinimum() / width))) * width
         while x < rect.xMaximum():
+            pnt = trans.transform(QgsPoint(x, y), QgsCoordinateTransform.ReverseTransform)
             f = QgsFeature()
+            f.setFields(fields,True)
             f.setGeometry(QgsGeometry.fromPolygon([[
                 trans.transform(QgsPoint(x, y), QgsCoordinateTransform.ReverseTransform),
                 trans.transform(QgsPoint(x, y + height), QgsCoordinateTransform.ReverseTransform),
@@ -170,9 +168,9 @@ def generateFrames(layer, mapRect, width, height, mapCrs, elemCrs, xmin, xmax, y
                 trans.transform(QgsPoint(x, y), QgsCoordinateTransform.ReverseTransform)
             ]]))
             
-            strFrame = nameFunc(x, y)
+            strFrame = nameFunc(x, y)	
             
-            f.setAttributeMap({0: strFrame})
+            f.setAttribute("MapName", strFrame)
             layer.addFeature(f)
             
             x += width
@@ -185,22 +183,26 @@ def generateFrames(layer, mapRect, width, height, mapCrs, elemCrs, xmin, xmax, y
 class BaseMapFrame(object):
 
     def __init__(self, iface):
+        try:
+            self.QgisVersion = unicode(QGis.QGIS_VERSION_INT)
+        except:
+            self.QgisVersion = unicode(QGis.qgisVersion)[0]
+
         self.iface = iface
         self.canvas = iface.mapCanvas()
 
     def initGui(self):
         self.action_genMesh = QAction(QIcon(":/icon/icon.png"), "BaseMapFrame", self.iface.mainWindow())
-        self.iface.addToolBarIcon(self.action_genMesh)
-        self.iface.addPluginToMenu(
+        self.iface.addVectorToolBarIcon(self.action_genMesh)
+        self.iface.addPluginToVectorMenu(
             QCoreApplication.translate(
             "BaseMapFrame", "Creates Japan National Base Map Frame ..."), self.action_genMesh)
 
         QObject.connect(self.action_genMesh, SIGNAL("activated()"), self.genMesh)
 
     def unload(self):
-        self.iface.unregisterMainWindowAction(self.action_genMesh)
-        self.iface.removeToolBarIcon(self.action_genMesh)
-        self.iface.removePluginMenu(QCoreApplication.translate(
+        self.iface.removeVectorToolBarIcon(self.action_genMesh)
+        self.iface.removePluginVectorMenu(QCoreApplication.translate(
             "BaseMapFrame", "Creates Japan National Base Map Frame ..."), self.action_genMesh)
 
 
@@ -208,8 +210,7 @@ class BaseMapFrame(object):
 
         if rect.isEmpty():
             QMessageBox.information(self.iface.mainWindow(), "Warning",
-                        QCoreApplication.translate("BaseMapFrame", "Map extent is empgy.") )
-#                        QCoreApplication.translate("NationalBasicMesh", "%1 %2 %3 %4").arg(rect.xMinimum()).arg(rect.xMaximum()).arg(rect.yMinimum()).arg(rect.yMaximum()))
+                        QCoreApplication.translate("BaseMapFrame", "Map extent is empty.") )
             return False
         
         trans = QgsCoordinateTransform(mapCrs, elemCrs)
@@ -235,15 +236,14 @@ class BaseMapFrame(object):
         if dlg.exec_() == QDialog.Accepted:
             
             if not dlg.radioButton_2nd.isChecked():
-                systemNo = dlg.comboBox_system.itemData(dlg.comboBox_system.currentIndex()).toInt()[0]
+                systemNo = dlg.comboBox_system.itemData(dlg.comboBox_system.currentIndex())
             else:
                 systemNo = 4612
 
             mapRenderer = self.canvas.mapRenderer()
-            mapCrs = mapRenderer.destinationSrs()
-            epsg = mapCrs.epsg()
+            mapCrs = mapRenderer.destinationCrs()
             elemCrs = QgsCoordinateReferenceSystem()
-            elemCrs.createFromEpsg(systemNo)
+            elemCrs.createFromId(systemNo)
             mapRect = self.canvas.extent()
             
             if self.checkExtent(mapRect, elemCrs, mapCrs) == False:
@@ -254,7 +254,6 @@ class BaseMapFrame(object):
                 QgsMapLayerRegistry.instance().addMapLayer(latlonLayer)
                 generateFrames(latlonLayer, mapRect, 2000, 1500, mapCrs, elemCrs, -160000, 160000, -300000, 300000, GetFrameName2500);
 
-#                self.genMesh2500(latlonLayer, mapRect, elemCrs, mapCrs)
             elif dlg.radioButton_5000.isChecked():
                 latlonLayer = QgsVectorLayer("Polygon", "Base Map Frame 5000", "memory")
                 QgsMapLayerRegistry.instance().addMapLayer(latlonLayer)
@@ -262,40 +261,31 @@ class BaseMapFrame(object):
             else:
                 latlonLayer = QgsVectorLayer("Polygon", "2nd Mesh", "memory")
                 QgsMapLayerRegistry.instance().addMapLayer(latlonLayer)
-#                self.getMesh2nd(latlonLayer, mapRect, elemCrs, mapCrs )
                 generateFrames(latlonLayer, mapRect, 1.0/8, 1.0/12, mapCrs, elemCrs, -180, 180, -90, 90, GetFrameName2ndMesh);
-        
-            QgsSymbologyV2Conversion.rendererV2toV1(latlonLayer)
-        
-            renderer = latlonLayer.renderer()
-            symbol = renderer.symbol()
-            symbol.setColor(QColor.fromRgb(0, 0, 150))
-            symbol.setFillStyle(Qt.NoBrush)
-            symbol.setLineStyle(Qt.SolidLine)
-            lwidth = symbol.lineWidth()
-            symbol.setLineWidth(1.0)
+        else:
+            return
 
-#        symbol = QgsSymbolV2.defaultSymbol(QGis.Polygon)
-##        sLayer = QgsSimpleFillSymbolLayerV2(
-##                                            QColor.fromRgb(0, 0, 150), 
-##                                            Qt.NoBrush, 
-##                                            QColor.fromRgb(0, 0, 150), 
-##                                            Qt.SolidLine, 1.0 )
-#        sLayer = symbol.symbolLayer(0)
-#        sLayer.setBrushStyle(Qt.NoBrush)
-#        sLayer.setBorderColor(QColor.fromRgb(0,0,150))
-#        sLayer.setBorderStyle(Qt.SolidLine)
-#        sLayer.setBorderWidth(1.0)
-##        symbol.appendSymbolLayer(sLayer)
-#        renderer = latlonLayer.rendererV2(symbol)
-#        latlonLayer.setRendererV2(renderer)
+        symbol = QgsSymbolV2.defaultSymbol(QGis.Polygon)
+        sLayer = QgsSimpleFillSymbolLayerV2(
+                                            QColor.fromRgb(0, 0, 150), 
+                                            Qt.NoBrush, 
+                                            QColor.fromRgb(0, 0, 150), 
+                                            Qt.SolidLine, 1.0 )
+        sLayer = symbol.symbolLayer(0).clone()
+        sLayer.setBrushStyle(Qt.NoBrush)
+        sLayer.setBorderColor(QColor.fromRgb(0,0,150))
+        sLayer.setBorderStyle(Qt.SolidLine)
+        sLayer.setBorderWidth(1.0)
+        symbol.changeSymbolLayer(0, sLayer)
+        renderer = QgsSingleSymbolRendererV2(symbol)
+        latlonLayer.setRendererV2(renderer)
         
-            latlonLayer.enableLabels(True)
-            label = latlonLayer.label()
-            label.setLabelField(QgsLabel.Text, 0)
-            labelAttr = label.layerAttributes()
-            labelAttr.setColor(QColor.fromRgb(0, 0, 150))
-            size = labelAttr.size()
-            labelAttr.setSize(18.0, QgsLabelAttributes.PointUnits)
+        latlonLayer.enableLabels(True)
+        label = latlonLayer.label()
+        label.setLabelField(QgsLabel.Text, 0)
+        labelAttr = label.labelAttributes()
+        labelAttr.setColor(QColor.fromRgb(0, 0, 150))
+        size = labelAttr.size()
+        labelAttr.setSize(18.0, QgsLabelAttributes.PointUnits)
         
-            self.canvas.refresh()
+        self.canvas.refresh()

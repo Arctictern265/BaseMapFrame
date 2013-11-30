@@ -24,27 +24,11 @@
 
 """
 
-from BaseMapFrame import BaseMapFrame
-
 #import os, sys
 #sys.path.append(r"C:\Program Files\eclipse\dropins\plugins\org.python.pydev.debug_1.6.3.2010100513\pysrc")
 #import pydevd
 #pydevd.settrace()  
 
-def name():
-    return "JapanNationalBaseMapFrame"
-
-def description():
-    return "国土基本図図郭発生プラグイン"
-
-def version():
-    return "0.0"
-
-def qgisMinimumVersion():
-    return "1.8"
-
-def authorName():
-    return "Yamate, N"
-
 def classFactory(iface):
+    from BaseMapFrame import BaseMapFrame
     return BaseMapFrame(iface)
